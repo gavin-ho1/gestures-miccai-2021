@@ -22,7 +22,7 @@ from sklearn.metrics import (
 
 import pytorch_lightning as pl
 from sacred import Experiment
-from sacred.observers import FileStorageObserver, SlackObserver
+from sacred.observers import FileStorageObserver
 
 from models import RecurrentModel, MeanModel
 from dataset import FeaturesSequencesDataset
@@ -36,10 +36,6 @@ ex = Experiment()
 
 file_observer = FileStorageObserver(runs_dir / 'sacred')
 ex.observers.append(file_observer)
-
-slack_config_path = Path('~/slack.json').expanduser()
-slack_obs = SlackObserver.from_config(str(slack_config_path))
-ex.observers.append(slack_obs)
 
 TEMP_DIR = Path(tempfile.gettempdir())
 

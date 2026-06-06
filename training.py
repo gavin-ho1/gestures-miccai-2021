@@ -7,7 +7,7 @@ import torch
 import pandas as pd
 from tqdm import tqdm
 
-from utils import sglob
+from utils import sglob, torch_load
 
 
 def get_device():
@@ -31,6 +31,8 @@ def get_num_files(directory):
 def prepare_df(df, features_dir, frames_per_clip=8, fps=15):
     durations_dict = {}
     for view_dir in tqdm(list(features_dir.iterdir())):
+        if not view_dir.is_dir():
+            continue
         key = tuple(view_dir.name.split('_')[:2])
         if key in durations_dict: continue
         num_snippets = get_num_files(view_dir)
@@ -163,6 +165,6 @@ class Model(torch.nn.Module):
 
 def get_classifier(checkpoint_path):
     model = Model()
-    state_dict = torch.load(checkpoint_path)['state_dict']
+    state_dict = torch_load(checkpoint_path)['state_dict']
     model.load_state_dict(state_dict)
     return model

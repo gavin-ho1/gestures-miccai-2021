@@ -11,7 +11,7 @@ import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from utils import sglob
+from utils import sglob, torch_load
 
 
 class SudepDataset(torch.utils.data.Dataset):
@@ -78,7 +78,7 @@ class FeaturesSequencesDataset(SudepDataset):
         else:
             cache_path = Path(cache_path)
             if cache_path.is_file():
-                state = torch.load(cache_path)
+                state = torch_load(cache_path)
                 self.data = state['data']
                 self.seizure_dirs = state['seizures_dirs']
             else:
@@ -186,7 +186,7 @@ class FeaturesSequencesDataset(SudepDataset):
             if not paths:
                 raise RuntimeError(f'No .pth files found in {seizure_dir}')
             for feature_path in tqdm(paths, leave=False):
-                frame_features = torch.load(feature_path)
+                frame_features = torch_load(feature_path)
                 tensor_list.append(frame_features)
             vectors[pnt_szr_cam] = torch.stack(tensor_list)
         return vectors

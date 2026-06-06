@@ -1,7 +1,9 @@
 # Notes
+These are my notes on reproducing the SOTA from Perez-Garcia et. al's paper using the GESTURES dataset.
 
+## Process
 
-Needed to use Docker to install dependencies because they were so outdated. Here are the exact commands I ran:
+Needed to use Docker to install dependencies because they were so outdated. I also had to make a few edits to the code to fix bugs. Here are the exact commands I ran:
 
 Download the dataset and unzip:
 
@@ -39,24 +41,17 @@ Activate conda
 conda activate miccai
 ```
 
-Run training script:
+Run training script in accordance with the paper:
 ```
-python train_features_lstm.py \
-  --print-config \
-  with \
-  gpus=0 \
-  args.gpus=0 \
-  auto_select_gpus=False \
-  args.auto_select_gpus=False \
-  experiment_name=lstm_feats_jitter_${GAMMA}_agg_${AGG}_segs_${N} \
-  jitter_mode=${GAMMA} \
-  aggregation=${AGG} \
-  num_segments=${N} \
-  fold=${K}
+python run_cv.py
 ```
 
+Aggregate Results in accordance with the paper:
+```
+aggregate_results.py
+```
 
-View Results:
+View Results of a single run:
 ```
 tensorboard --logdir runs/[run] --host 0.0.0.0 --port 6006
 ```

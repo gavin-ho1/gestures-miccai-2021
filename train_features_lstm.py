@@ -69,7 +69,7 @@ def get_config_training():
     # pylint: disable=unused-variable
     gtcs_weight = None
     patience = 100
-    monitored_variable, mode = 'val_fscore', 'max'
+    monitored_variable, mode = 'val_loss', 'min'
     hidden_units = 64
     aggregation = 'lstm'
 
@@ -101,7 +101,7 @@ def get_trainer_kwargs():
     args['val_percent_check'] = percent_check
     args['test_percent_check'] = percent_check
 
-    max_epochs = 400
+    max_epochs = 2
     args['max_epochs'] = max_epochs
 
     log_gpu_memory = False
@@ -186,7 +186,7 @@ class Model(pl.LightningModule):
             frames_per_clip,
             frame_rate,
             subject_and_seizure_ids=train_ids,
-            cache_path=TEMP_DIR / 'dataset_train.pth',
+            cache_path=TEMP_DIR / f'dataset_train_fold{fold}.pth',
             num_segments=num_segments,
             jitter_mode=jitter_mode,
         )
@@ -197,7 +197,7 @@ class Model(pl.LightningModule):
             frames_per_clip,
             frame_rate,
             subject_and_seizure_ids=val_ids,
-            cache_path=TEMP_DIR / 'dataset_val.pth',
+            cache_path=TEMP_DIR / f'dataset_val_fold{fold}.pth',
             num_segments=num_segments,
             jitter_mode='middle',
         )
@@ -208,7 +208,7 @@ class Model(pl.LightningModule):
             frames_per_clip,
             frame_rate,
             subject_and_seizure_ids=test_ids,
-            cache_path=TEMP_DIR / 'dataset_test.pth',
+            cache_path=TEMP_DIR / f'dataset_test_fold{fold}.pth',
             num_segments=num_segments,
             jitter_mode='middle',
         )
@@ -385,12 +385,12 @@ def get_early_callback(patience, monitored_variable, mode):
 
 
 @ex.capture
-def get_model_ckpt_callback(experiment_name, fold):
+def get_model_ckpt_callback(experiment_name, fold, monitored_variable, mode):
     fold_dir = runs_dir / experiment_name / f'fold_{fold}'
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
-        filepath=fold_dir,
-        monitor='val_fscore',
-        mode='max',
+        filepath=str(fold_dir / '{epoch}'),
+        monitor=monitored_variable,
+        mode=mode,
     )
     return checkpoint_callback
 
@@ -414,6 +414,7 @@ def get_trainer(args):
     args = copy.deepcopy(args)  # why? because e.g. batch size may be changed?
     if args['early_stop_callback']:
         args['early_stop_callback'] = get_early_callback()
+    args['checkpoint_callback'] = get_model_ckpt_callback()
     args['default_root_dir'] = get_default_root_dir()
     # args['logger'] = get_logger()
     trainer = pl.Trainer(**args)
@@ -496,7 +497,7 @@ def test():
 @ex.automain
 def run(_seed, seed):
     # pylint: disable=no-value-for-parameter
-    pl.seed_everything(_seed) if seed is None else pl.seed_everything(seed)
+    torch.manual_seed(_seed if seed is None else seed)
     model = get_model()
     trainer = get_trainer()
     trainer.fit(model)

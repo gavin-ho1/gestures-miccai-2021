@@ -28,6 +28,7 @@ This step was neccary given that python 3.7 and its libraries were so outdated o
 docker build --platform linux/amd64 -t miccai-env .
 docker run --platform linux/amd64 \
   -it \
+  -p 6006:6006 \
   -v $(pwd):/app \
   -v $(pwd)/dataset:/dataset \
   miccai-env
@@ -52,4 +53,10 @@ python train_features_lstm.py \
   aggregation=${AGG} \
   num_segments=${N} \
   fold=${K}
+```
+
+
+View Results:
+```
+tensorboard --logdir runs/[run] --host 0.0.0.0 --port 6006
 ```

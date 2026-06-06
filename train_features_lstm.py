@@ -215,7 +215,8 @@ class Model(pl.LightningModule):
         print(f'Test dataset: {len(self.test_dataset)} data points')
 
         if gtcs_weight is None:
-            self.gtcs_weight = 1 / self.train_dataset.get_gtcs_ratio()
+            gtcs_ratio = self.train_dataset.get_gtcs_ratio()
+            self.gtcs_weight = 1 / gtcs_ratio if gtcs_ratio > 0 else 1.0
         else:
             self.gtcs_weight = gtcs_weight
         print('Weight of positive class:', self.gtcs_weight, '\n\n')

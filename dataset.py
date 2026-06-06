@@ -57,7 +57,11 @@ class FeaturesSequencesDataset(SudepDataset):
         self.num_segments = num_segments
         self.frames_per_clip = frames_per_clip
         self.num_debug_seizures = num_debug_seizures
-        self.table = DatasetTable()
+        self.table = DatasetTable(
+            root_dir=self.root_dir,
+            frames_per_clip=frames_per_clip,
+            frame_rate=frame_rate,
+        )
         self.frame_rate = frame_rate
         features_dir = self.root_dir / f'features_fpc_{frames_per_clip}_fps_{frame_rate}'
         self.seizure_dirs = []
@@ -248,26 +252,38 @@ def get_chunks(num_vectors, frames_per_clip, num_chunks):
 
 
 class DatasetTable:
-    def __init__(self, root_dir='~/sudep/sudep_dataset'):
+    def __init__(self, root_dir='~/sudep/sudep_dataset', frames_per_clip=8, frame_rate=15):
         root_dir = Path(root_dir).expanduser()
         self.path = root_dir / 'seizures.csv'
         self.df = pd.read_csv(
-            self.path, index_col=0, dtype={'Subject': str, 'Seizure': str})
+            self.path, dtype={'Subject': str, 'Seizure': str})
+        self.features_dir = root_dir / f'features_fpc_{frames_per_clip}_fps_{frame_rate}'
+        self.frames_per_clip = frames_per_clip
+        self.frame_rate = frame_rate
 
     def get_gtcs_time(self, ssid):
         subject, seizure = ssid.split('_')[:2]
         row = self.df.query(f'Subject == "{subject}" & Seizure == "{seizure}"')
-        ratio = row.RatioGTCS.values[0]
-        if pd.isna(ratio):
-            time = np.inf
-        else:
-            time = ratio * row.Duration.values[0]
-        return time
+        onset = row.OnsetClonic.values[0]
+        if pd.isna(onset):
+            return np.inf
+        return onset
+
+    def _get_max_frame_index(self, ssid):
+        max_idx = 0
+        for cam in ('L', 'S'):
+            dir_path = self.features_dir / f'{ssid}_{cam}'
+            if dir_path.exists():
+                for fpath in dir_path.iterdir():
+                    if fpath.suffix == '.pth':
+                        idx = int(fpath.stem.split('_')[-1])
+                        if idx > max_idx:
+                            max_idx = idx
+        return max_idx
 
     def get_duration(self, ssid):
-        subject, seizure = ssid.split('_')[:2]
-        row = self.df.query(f'Subject == "{subject}" & Seizure == "{seizure}"')
-        return row.Duration.values[0]
+        max_idx = self._get_max_frame_index(ssid)
+        return (max_idx + self.frames_per_clip) / self.frame_rate
 
     def is_gtcs(self, ssid):
         return self.get_gtcs_time(ssid) < np.inf

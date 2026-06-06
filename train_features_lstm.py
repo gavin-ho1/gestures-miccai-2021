@@ -69,7 +69,7 @@ def get_config_training():
     # pylint: disable=unused-variable
     gtcs_weight = None
     patience = 100
-    monitored_variable, mode = 'val_loss', 'min'
+    monitored_variable, mode = 'val_fscore', 'max'
     hidden_units = 64
     aggregation = 'lstm'
 
@@ -101,7 +101,7 @@ def get_trainer_kwargs():
     args['val_percent_check'] = percent_check
     args['test_percent_check'] = percent_check
 
-    max_epochs = 2
+    max_epochs = 400
     args['max_epochs'] = max_epochs
 
     log_gpu_memory = False
@@ -497,7 +497,7 @@ def test():
 @ex.automain
 def run(_seed, seed):
     # pylint: disable=no-value-for-parameter
-    torch.manual_seed(_seed if seed is None else seed)
+    pl.seed_everything(_seed) if seed is None else pl.seed_everything(seed)
     model = get_model()
     trainer = get_trainer()
     trainer.fit(model)

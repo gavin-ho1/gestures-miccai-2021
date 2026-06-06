@@ -25,15 +25,15 @@ epoch_pattern = re.compile(
 
 def find_best_epoch(run_dir):
     cout = (run_dir / 'cout.txt').read_text()
-    best_val_loss = float('inf')
+    best_val_fscore = float('-inf')
     best_epoch = None
     for line in cout.split('\n'):
         m = epoch_pattern.search(line)
         if m:
             epoch = int(m.group(1))
-            val_loss = float(m.group(4))
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
+            val_fscore = float(m.group(3))
+            if val_fscore > best_val_fscore:
+                best_val_fscore = val_fscore
                 best_epoch = epoch
     return best_epoch
 

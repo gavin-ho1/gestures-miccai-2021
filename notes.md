@@ -16,11 +16,7 @@ Unzip it:
 unzip dataset.zip -d dataset
 ```
 
-Or, unzip with 7z, which I found to be faster:
-
-```
-7z e dataset.zip -o dataset
-```
+Note: I tried using 7zip to unzip, and it didn't work. Even after unzipping normally, you have to clear the cache in docker for the script to run without errors. (see below)
 
 Build and run the docker image, force it to be a x86 container, otherwise some libraries won't work. It's important that you download and unzip the file first before running the docker container. Otherwise, unzipping the dataset takes much longer. 
 
@@ -41,6 +37,11 @@ Activate conda
 conda activate miccai
 ```
 
+Clear the `tmp` directory, otherwise it won't run.
+```
+rm -rf /tmp/dataset_*.pth
+```
+
 Run training script in accordance with the paper:
 ```
 python run_cv.py
@@ -48,10 +49,13 @@ python run_cv.py
 
 Aggregate Results in accordance with the paper:
 ```
-aggregate_results.py
+python aggregate_results.py
 ```
 
 View Results of a single run:
 ```
 tensorboard --logdir runs/[run] --host 0.0.0.0 --port 6006
 ```
+
+## Other Notes
+

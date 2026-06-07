@@ -1,15 +1,16 @@
 """
 Paper-faithful evaluation (Sec 3, p.6):
-  - For each fold, use the checkpoint saved by the training run (the epoch with
-    the lowest validation loss; ModelCheckpoint keeps only that one).
+  - For each fold, load the checkpoint saved by the training run (the epoch with
+    the lowest validation loss).
   - Predict the TCS (positive) probability with the softmax head for BOTH video
-    streams of each seizure, average them ("consensus probability"), and
-    threshold at 0.5.
+    streams of each seizure, average them, threshold at 0.5.
   - Pool every fold's per-seizure predictions into a single confusion matrix.
 Discarded-FOV streams are excluded from training but USED for evaluation, so the
 evaluation dataset is built with discard=False and its own cache file.
+
+Usage:  python evaluate_cv.py [experiment_name]
+        (defaults to the gamma=4, seed-unset experiment)
 """
-import json
 import sys
 from pathlib import Path
 from collections import defaultdict
@@ -19,73 +20,69 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
 from dataset import FeaturesSequencesDataset
-from models import RecurrentModel, MeanModel
+from models import RecurrentModel
 from training import get_fold_split
 
 runs_dir = Path(__file__).parent / 'runs'
-sacred_dir = runs_dir / 'sacred'
-exp_dir = runs_dir / 'lstm_feats_jitter_4_agg_blstm_segs_16'
 root_dir = Path(__file__).parent / 'dataset'
+
 NUM_FOLDS = 10
-MIN_DURATION = 15  # must match min_seizure_duration used for training
+MIN_DURATION = 15      # must match min_seizure_duration used for training
+NUM_SEGMENTS = 16      # fixed architecture for this reproduction
+HIDDEN = 64
+BIDIRECTIONAL = True
 
 
-def get_latest_fold_configs():
-    """Map each fold -> its most recent sacred config (later runs win)."""
-    fold_config = {}
-    if not sacred_dir.is_dir():
-        return fold_config
-    run_dirs = [d for d in sacred_dir.iterdir() if d.name.isdigit()]
-    for run_dir in sorted(run_dirs, key=lambda p: int(p.name)):
-        cfg_path = run_dir / 'config.json'
-        if not cfg_path.is_file():
-            continue
-        try:
-            cfg = json.load(open(cfg_path))
-        except (json.JSONDecodeError, OSError):
-            continue
-        if 'fold' in cfg:
-            fold_config[cfg['fold']] = cfg
-    return fold_config
-
-
-def build_model(cfg, state_dict):
-    hidden = cfg.get('hidden_units', 64)
-    aggregation = cfg.get('aggregation', 'blstm')
-    if aggregation == 'mean':
-        model = MeanModel()
-    else:
-        model = RecurrentModel(
-            hidden_size=hidden,
-            bidirectional=(aggregation == 'blstm'),
-        )
+def load_model(ckpt_path):
+    state = torch.load(str(ckpt_path), map_location='cpu')
+    model = RecurrentModel(hidden_size=HIDDEN, bidirectional=BIDIRECTIONAL)
     # state_dict keys carry a 'model.' prefix from the LightningModule wrapper.
-    sd = {k.replace('model.', '', 1): v for k, v in state_dict.items()}
+    sd = {k.replace('model.', '', 1): v for k, v in state['state_dict'].items()}
     model.load_state_dict(sd)
     model.eval()
     return model
 
 
+def compute_metrics(true, preds):
+    true = np.asarray(true)
+    preds = np.asarray(preds)
+    lab = (preds >= 0.5).astype(int)  # consensus thresholded at 0.5
+    tp = int(((lab == 1) & (true == 1)).sum())
+    tn = int(((lab == 0) & (true == 0)).sum())
+    fp = int(((lab == 1) & (true == 0)).sum())
+    fn = int(((lab == 0) & (true == 1)).sum())
+    n = tp + tn + fp + fn
+    acc = (tp + tn) / n if n else 0.0
+    prec = tp / (tp + fp) if (tp + fp) else 0.0
+    rec = tp / (tp + fn) if (tp + fn) else 0.0
+    f1 = 2 * prec * rec / (prec + rec) if (prec + rec) else 0.0
+    return dict(tp=tp, tn=tn, fp=fp, fn=fn, n=n, acc=acc, prec=prec, rec=rec, f1=f1)
+
+
+def pick_checkpoint(fold_dir):
+    ckpts = list(fold_dir.glob('*.ckpt')) if fold_dir.is_dir() else []
+    if not ckpts:
+        return None
+    # If more than one exists (e.g. a stale file), pick the highest epoch number.
+    def epoch_of(p):
+        digits = ''.join(filter(str.isdigit, p.stem))
+        return int(digits) if digits else -1
+    return sorted(ckpts, key=epoch_of)[-1]
+
+
 def main():
-    fold_config = get_latest_fold_configs()
+    exp_name = sys.argv[1] if len(sys.argv) > 1 else 'lstm_feats_jitter_4_agg_blstm_segs_16'
+    exp_dir = runs_dir / exp_name
 
-    all_true, all_preds, all_ssids = [], [], []
-
+    all_true, all_preds = [], []
+    print(f'Experiment: {exp_name}\n')
+    print(f'{"fold":>4}  {"checkpoint":>16}  {"n":>3}  {"acc":>6}  {"f1":>6}  TP/TN/FP/FN')
     for fold in range(NUM_FOLDS):
-        fold_dir = exp_dir / f'fold_{fold}'
-        ckpts = sorted(fold_dir.glob('*.ckpt')) if fold_dir.is_dir() else []
-        if not ckpts:
-            print(f'Fold {fold}: no checkpoint found in {fold_dir}')
+        ckpt_path = pick_checkpoint(exp_dir / f'fold_{fold}')
+        if ckpt_path is None:
+            print(f'{fold:>4}  (no checkpoint found)')
             continue
-        if len(ckpts) > 1:
-            print(f'Fold {fold}: WARNING {len(ckpts)} checkpoints, using {ckpts[-1].name}')
-        ckpt_path = ckpts[-1]
-        cfg = fold_config.get(fold, {})
-        num_segments = cfg.get('num_segments', 16)
-        print(f'Fold {fold}: checkpoint={ckpt_path.name}  num_segments={num_segments}')
-
-        state = torch.load(str(ckpt_path), map_location='cpu')
-        model = build_model(cfg, state['state_dict'])
+        model = load_model(ckpt_path)
 
         _, val_ids, _ = get_fold_split(
             root_dir, k=fold, num_folds=NUM_FOLDS,
@@ -95,56 +92,45 @@ def main():
             root_dir, frames_per_clip=8, frame_rate=15,
             subject_and_seizure_ids=val_ids,
             cache_path=Path('/tmp') / f'dataset_eval_fold{fold}.pth',
-            num_segments=num_segments,
-            jitter_mode='middle',  # gamma -> inf, central snippet
-            discard=False,         # discarded-FOV streams are used for evaluation
+            num_segments=NUM_SEGMENTS, jitter_mode='middle', discard=False,
         )
-        dataloader = torch.utils.data.DataLoader(
+        loader = torch.utils.data.DataLoader(
             dataset, batch_size=64, shuffle=False, num_workers=0,
         )
 
-        # Collect per-view positive-class probabilities for this fold.
         seizure_preds = defaultdict(list)
         seizure_true = {}
-        for batch in dataloader:
+        for batch in loader:
             with torch.no_grad():
-                logits = model(batch['sequence'])              # [N, 2]
-                probs = torch.softmax(logits, dim=1)[:, 1]      # P(TCS)
+                probs = torch.softmax(model(batch['sequence']), dim=1)[:, 1]
             for i in range(len(batch['pnt_szr_cam'])):
                 ssid = '_'.join(batch['pnt_szr_cam'][i].split('_')[:2])
                 seizure_preds[ssid].append(float(probs[i]))
                 seizure_true[ssid] = int(batch['gtcs'][i])
 
-        # Consensus probability per seizure = mean over its video streams.
-        for ssid, preds in seizure_preds.items():
-            all_preds.append(float(np.mean(preds)))
-            all_true.append(seizure_true[ssid])
-            all_ssids.append(ssid)
+        fold_true, fold_preds = [], []
+        for ssid, ps in seizure_preds.items():
+            fold_preds.append(float(np.mean(ps)))   # consensus over streams
+            fold_true.append(seizure_true[ssid])
+        all_true.extend(fold_true)
+        all_preds.extend(fold_preds)
+
+        m = compute_metrics(fold_true, fold_preds)
+        print(f'{fold:>4}  {ckpt_path.name:>16}  {m["n"]:>3}  '
+              f'{m["acc"]*100:>5.1f}%  {m["f1"]*100:>5.1f}%  '
+              f'{m["tp"]}/{m["tn"]}/{m["fp"]}/{m["fn"]}')
 
     if not all_true:
-        print('No predictions collected. Did the training run complete?')
+        print('\nNo predictions collected. Did the training run complete?')
         return
 
-    all_preds = np.array(all_preds)
-    all_true = np.array(all_true)
-    pred_labels = (all_preds >= 0.5).astype(int)  # consensus thresholded at 0.5
-    tp = int(((pred_labels == 1) & (all_true == 1)).sum())
-    tn = int(((pred_labels == 0) & (all_true == 0)).sum())
-    fp = int(((pred_labels == 1) & (all_true == 0)).sum())
-    fn = int(((pred_labels == 0) & (all_true == 1)).sum())
-    accuracy = (tp + tn) / (tp + tn + fp + fn)
-    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
-
-    print()
-    print(f'Pooled per-seizure evaluation over {len(all_true)} seizures '
-          f'(unique: {len(set(all_ssids))})')
-    print(f'TP={tp}  TN={tn}  FP={fp}  FN={fn}')
-    print(f'Accuracy:  {accuracy*100:.1f}%')
-    print(f'F1-score:  {f1*100:.1f}%')
-    print(f'Precision: {precision*100:.1f}%')
-    print(f'Recall:    {recall*100:.1f}%')
+    M = compute_metrics(all_true, all_preds)
+    print(f'\nPooled per-seizure evaluation over {M["n"]} seizures')
+    print(f'TP={M["tp"]}  TN={M["tn"]}  FP={M["fp"]}  FN={M["fn"]}')
+    print(f'Accuracy:  {M["acc"]*100:.1f}%')
+    print(f'F1-score:  {M["f1"]*100:.1f}%')
+    print(f'Precision: {M["prec"]*100:.1f}%')
+    print(f'Recall:    {M["rec"]*100:.1f}%')
     print(f'\nPaper: 98.9% accuracy, 98.7% F1-score (77 TP, 104 TN, 2 FP, 0 FN)')
 
 

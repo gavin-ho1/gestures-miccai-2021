@@ -37,7 +37,7 @@ Activate conda
 conda activate miccai
 ```
 
-Clear the `tmp` directory, otherwise it won't run.
+Clear the `tmp` directory before each run, otherwise it won't run, or you will have data leakage.
 ```
 rm -rf /tmp/dataset_*.pth
 ```
@@ -47,9 +47,10 @@ Run training script in accordance with the paper:
 python run_cv.py
 ```
 
-Aggregate Results in accordance with the paper:
+Evaluate in accordance with the paper (pooled per-seizure consensus, thresholded
+at 0.5 — directly comparable to the paper's 98.9% / 77·104·2·0 confusion matrix):
 ```
-python aggregate_results.py
+python evaluate_cv.py
 ```
 
 View Results of a single run:

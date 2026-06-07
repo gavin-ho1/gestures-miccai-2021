@@ -286,7 +286,12 @@ class DatasetTable:
         return (max_idx + self.frames_per_clip) / self.frame_rate
 
     def is_gtcs(self, ssid):
-        return self.get_gtcs_time(ssid) < np.inf
+        # Use the authoritative ground-truth label column (GTCS), not the
+        # presence of a clonic-onset time. They disagree for 7 seizures in
+        # seizures.csv (clonic onset recorded but GTCS == False).
+        subject, seizure = ssid.split('_')[:2]
+        row = self.df.query(f'Subject == "{subject}" & Seizure == "{seizure}"')
+        return bool(row.GTCS.values[0])
 
 
 def sample_beta(chunks, concentration, frames_per_clip):

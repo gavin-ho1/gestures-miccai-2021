@@ -11,7 +11,7 @@ BASE_CMD = [
     'gpus=0', 'args.gpus=0',
     'experiment_name=lstm_feats_jitter_4_agg_blstm_segs_16',
     'jitter_mode=4', 'aggregation=blstm', 'num_segments=16',
-    'percentage_cores=100', 'batch_size=2048',
+    'percentage_cores=100', 'batch_size=64',
 ]
 
 ENV = {**os.environ, 'PYTHONUNBUFFERED': '1'}

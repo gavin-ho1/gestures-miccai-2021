@@ -69,7 +69,8 @@ def get_config_training():
     # pylint: disable=unused-variable
     gtcs_weight = None
     patience = 100
-    monitored_variable, mode = 'val_fscore', 'max'
+    # Paper selects the model from the epoch with the lowest validation loss.
+    monitored_variable, mode = 'val_loss', 'min'
     hidden_units = 64
     aggregation = 'lstm'
 
@@ -216,7 +217,9 @@ class Model(pl.LightningModule):
 
         if gtcs_weight is None:
             gtcs_ratio = self.train_dataset.get_gtcs_ratio()
-            self.gtcs_weight = 1 / gtcs_ratio if gtcs_ratio > 0 else 1.0
+            # Paper: weight for the TCS (positive) class = N_FOS / N_TCS.
+            # gtcs_ratio = N_TCS / N_total, so N_FOS/N_TCS = (1 - ratio)/ratio.
+            self.gtcs_weight = (1 - gtcs_ratio) / gtcs_ratio if gtcs_ratio > 0 else 1.0
         else:
             self.gtcs_weight = gtcs_weight
         print('Weight of positive class:', self.gtcs_weight, '\n\n')
@@ -272,14 +275,14 @@ class Model(pl.LightningModule):
         return batch['features'], batch['gtcs']
 
     def get_loss(self, logits, y):
-        # pylint: disable=no-value-for-parameter
-        pos_weight = self.get_pos_weight().type_as(logits)
-        y_one_hot = F.one_hot(y.long(), num_classes=2).float()
-        loss = F.binary_cross_entropy_with_logits(
-            logits,
-            y_one_hot,
-            pos_weight=pos_weight,
-        )
+        # Weighted cross-entropy over the 2-logit (softmax) head. This applies
+        # the paper's class-imbalance weighting: the GTCS (positive) class is
+        # up-weighted by 1 / gtcs_ratio, the non-GTCS class by 1. The previous
+        # one-hot + binary_cross_entropy_with_logits with a scalar pos_weight
+        # up-weighted one term per row symmetrically, so the imbalance
+        # correction was effectively a no-op.
+        weight = torch.Tensor([1.0, self.gtcs_weight]).type_as(logits)
+        loss = F.cross_entropy(logits, y.long(), weight=weight)
         return loss
 
     def get_metrics(self, y, predictions, threshold=0.5):
@@ -299,7 +302,7 @@ class Model(pl.LightningModule):
 
     def training_step(self, batch, batch_index):
         x, y = batch['sequence'], batch['gtcs']
-        logits = self(x).squeeze()
+        logits = self(x)
         loss = self.get_loss(logits, y)
         tensorboard_logs = dict(train_loss=loss)
         result = dict(loss=loss, log=tensorboard_logs)
@@ -307,7 +310,7 @@ class Model(pl.LightningModule):
 
     def validation_step(self, batch, batch_index):
         x, y = batch['sequence'], batch['gtcs']
-        logits = self(x).squeeze()
+        logits = self(x)
         loss = self.get_loss(logits, y)
         predictions = logits.argmax(dim=1)
         precision, recall, fscore, accuracy = self.get_metrics(y, predictions)
@@ -322,7 +325,7 @@ class Model(pl.LightningModule):
 
     def test_step(self, batch, batch_index):
         x, y = batch['sequence'], batch['gtcs']
-        logits = self(x).squeeze()
+        logits = self(x)
         loss = self.get_loss(logits, y)
         predictions = logits.argmax(dim=1)
         precision, recall, fscore, accuracy = self.get_metrics(y, predictions)

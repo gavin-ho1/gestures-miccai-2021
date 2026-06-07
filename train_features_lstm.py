@@ -275,12 +275,11 @@ class Model(pl.LightningModule):
         return batch['features'], batch['gtcs']
 
     def get_loss(self, logits, y):
-        # Weighted cross-entropy over the 2-logit (softmax) head. This applies
-        # the paper's class-imbalance weighting: the GTCS (positive) class is
-        # up-weighted by 1 / gtcs_ratio, the non-GTCS class by 1. The previous
-        # one-hot + binary_cross_entropy_with_logits with a scalar pos_weight
-        # up-weighted one term per row symmetrically, so the imbalance
-        # correction was effectively a no-op.
+        # Weighted cross-entropy over the 2-logit (softmax) head. Paper weight:
+        # the TCS (positive, class 1) class is up-weighted by N_FOS/N_TCS, the
+        # FOS (class 0) class by 1. The previous one-hot +
+        # binary_cross_entropy_with_logits with a scalar pos_weight up-weighted
+        # one term per row symmetrically, so the imbalance correction was a no-op.
         weight = torch.Tensor([1.0, self.gtcs_weight]).type_as(logits)
         loss = F.cross_entropy(logits, y.long(), weight=weight)
         return loss

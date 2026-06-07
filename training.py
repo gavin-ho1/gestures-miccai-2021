@@ -81,8 +81,9 @@ def get_buckets(
         )
         print(short)
 
-    gtcs = df[df.GTCS].sort_values(by='Duration', ascending=False)
-    no_gtcs = df[~df.GTCS].sort_values(by='Duration', ascending=False)
+    # TCS == has a clonic onset (paper's definition), not the CSV `GTCS` column.
+    gtcs = df[~df.isna().OnsetClonic].sort_values(by='Duration', ascending=False)
+    no_gtcs = df[df.isna().OnsetClonic].sort_values(by='Duration', ascending=False)
 
     for sdf in gtcs, no_gtcs:
         for subject, seizure in get_seizure_ids(sdf):

@@ -286,12 +286,12 @@ class DatasetTable:
         return (max_idx + self.frames_per_clip) / self.frame_rate
 
     def is_gtcs(self, ssid):
-        # Use the authoritative ground-truth label column (GTCS), not the
-        # presence of a clonic-onset time. They disagree for 7 seizures in
-        # seizures.csv (clonic onset recorded but GTCS == False).
-        subject, seizure = ssid.split('_')[:2]
-        row = self.df.query(f'Subject == "{subject}" & Seizure == "{seizure}"')
-        return bool(row.GTCS.values[0])
+        # The paper labels a seizure TCS by the presence of a clonic onset
+        # (a recorded OnsetClonic). This yields 77 positives, matching the
+        # paper's confusion matrix (77 TP + 0 FN). NOTE: the CSV's `GTCS`
+        # column disagrees for 7 seizures and gives only 70 positives, which
+        # does NOT match the paper -- so we use OnsetClonic, not GTCS.
+        return self.get_gtcs_time(ssid) < np.inf
 
 
 def sample_beta(chunks, concentration, frames_per_clip):

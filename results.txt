@@ -1,0 +1,50 @@
+All folds completed!
+Experiment: lstm_feats_jitter_4_agg_blstm_segs_16_seed_4
+
+fold        checkpoint    n     acc      f1  TP/TN/FP/FN
+   0    epoch=325.ckpt   19   94.7%   94.1%  8/10/1/0
+   1     epoch=72.ckpt   19  100.0%  100.0%  8/11/0/0
+   2    epoch=210.ckpt   19   84.2%   80.0%  6/10/1/2
+   3    epoch=216.ckpt   18   94.4%   94.1%  8/9/1/0
+   4    epoch=366.ckpt   18  100.0%  100.0%  8/10/0/0
+   5    epoch=136.ckpt   18   88.9%   87.5%  7/9/1/1
+   6    epoch=392.ckpt   18  100.0%  100.0%  8/10/0/0
+   7    epoch=115.ckpt   18  100.0%  100.0%  7/11/0/0
+   8     epoch=52.ckpt   18   94.4%   93.3%  7/10/1/0
+   9    epoch=258.ckpt   18  100.0%  100.0%  7/11/0/0
+
+Pooled per-seizure evaluation over 183 seizures
+TP=74  TN=101  FP=5  FN=3
+Accuracy:  95.6%
+F1-score:  94.9%
+Precision: 93.7%
+Recall:    96.1%
+
+Paper: 98.9% accuracy, 98.7% F1-score (77 TP, 104 TN, 2 FP, 0 FN)
+
+
+================================================================
+SWEEP SUMMARY  (pooled per-seizure accuracy / F1)
+================================================================
+
+gamma=2:
+  seed=  0:  acc= 96.2%   f1= 95.4%
+  seed=  1:  acc= 96.2%   f1= 95.5%
+  seed=  2:  acc= 96.2%   f1= 95.5%
+  seed=  3:  acc= 95.1%   f1= 94.1%
+  seed=  4:  acc= 94.5%   f1= 93.6%
+  BEST   :  acc= 96.2%   f1= 95.5%   (seed=1)
+  MEAN   :  acc=95.6+/-0.8%   f1=94.8+/-0.9%
+
+gamma=4:
+  seed=  0:  acc= 93.4%   f1= 91.9%
+  seed=  1:  acc= 94.5%   f1= 93.5%
+  seed=  2:  acc= 94.5%   f1= 93.4%
+  seed=  3:  acc= 92.9%   f1= 91.7%
+  seed=  4:  acc= 95.6%   f1= 94.9%
+  BEST   :  acc= 95.6%   f1= 94.9%   (seed=4)
+  MEAN   :  acc=94.2+/-1.1%   f1=93.1+/-1.3%
+
+Paper best: 98.9% accuracy / 98.7% F1-score
+(miccai) root@203117e48590:/app# 
+

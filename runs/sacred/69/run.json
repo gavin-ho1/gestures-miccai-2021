@@ -1,0 +1,111 @@
+{
+  "artifacts": [],
+  "command": "run",
+  "experiment": {
+    "base_dir": "/app",
+    "dependencies": [
+      "numpy==1.21.6",
+      "pytorch-lightning==0.7.6",
+      "sacred==0.8.1",
+      "scikit-learn==1.0.2",
+      "torch==1.7.1+cpu"
+    ],
+    "mainfile": "train_features_lstm.py",
+    "name": "train_features_lstm",
+    "repositories": [
+      {
+        "commit": "2fe0ffbf7c24425daf5f87554d0f57da99e028ee",
+        "dirty": false,
+        "url": "https://github.com/gavin-ho1/gestures-miccai-2021"
+      },
+      {
+        "commit": "2fe0ffbf7c24425daf5f87554d0f57da99e028ee",
+        "dirty": false,
+        "url": "https://github.com/gavin-ho1/gestures-miccai-2021"
+      },
+      {
+        "commit": "2fe0ffbf7c24425daf5f87554d0f57da99e028ee",
+        "dirty": false,
+        "url": "https://github.com/gavin-ho1/gestures-miccai-2021"
+      },
+      {
+        "commit": "2fe0ffbf7c24425daf5f87554d0f57da99e028ee",
+        "dirty": false,
+        "url": "https://github.com/gavin-ho1/gestures-miccai-2021"
+      }
+    ],
+    "sources": [
+      [
+        "dataset.py",
+        "_sources/dataset_3c86c0a29a23bbbd44845d3896405eca.py"
+      ],
+      [
+        "models.py",
+        "_sources/models_a941aec18f8a8a13cf044d739ebc1a53.py"
+      ],
+      [
+        "train_features_lstm.py",
+        "_sources/train_features_lstm_677fbec1fbd5b5cc26c2b1b757aee404.py"
+      ],
+      [
+        "training.py",
+        "_sources/training_7f792c71999364b628901279ae03c90d.py"
+      ]
+    ]
+  },
+  "heartbeat": "2026-06-08T05:10:12.283701",
+  "host": {
+    "ENV": {},
+    "cpu": "VirtualApple @ 2.50GHz",
+    "hostname": "203117e48590",
+    "os": [
+      "Linux",
+      "Linux-6.12.76-linuxkit-x86_64-with-debian-13.4"
+    ],
+    "python_version": "3.7.16"
+  },
+  "meta": {
+    "command": "run",
+    "options": {
+      "--beat-interval": null,
+      "--capture": null,
+      "--comment": null,
+      "--debug": false,
+      "--enforce_clean": false,
+      "--file_storage": null,
+      "--force": false,
+      "--help": false,
+      "--loglevel": null,
+      "--mongo_db": null,
+      "--name": null,
+      "--pdb": false,
+      "--print-config": false,
+      "--priority": null,
+      "--queue": false,
+      "--s3": null,
+      "--sql": null,
+      "--tiny_db": null,
+      "--unobserved": false,
+      "COMMAND": null,
+      "UPDATE": [
+        "gpus=0",
+        "args.gpus=0",
+        "experiment_name=lstm_feats_jitter_4_agg_blstm_segs_16_seed_1",
+        "jitter_mode=4",
+        "aggregation=blstm",
+        "num_segments=16",
+        "percentage_cores=100",
+        "batch_size=64",
+        "seed=1",
+        "fold=8"
+      ],
+      "help": false,
+      "with": true
+    }
+  },
+  "resources": [],
+  "result": null,
+  "start_time": "2026-06-08T05:05:09.035614",
+  "status": "COMPLETED",
+  "stop_time": "2026-06-08T05:10:12.280037"
+}
